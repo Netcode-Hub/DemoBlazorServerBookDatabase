@@ -1,0 +1,19 @@
+﻿@inject NavigationManager NavigationManager
+<div class="control-container">
+    <SfAppBar ColorMode="AppBarColor.Primary">
+        <span class="e-icons e-user-defined fs-1 text-warning"></span>
+        <span class="regular">Netcode Book Database</span>
+        <AppBarSpacer></AppBarSpacer>
+        <SfButton CssClass="e-inherit" IconCss="e-icons e-repeat" Content="Refresh" OnClick="(() => Navigate(Refresh))"></SfButton>
+        <SfButton CssClass="e-inherit" IconCss="e-icons e-print-layout" Content="Add Book" OnClick="(() => Navigate(AddBook))"></SfButton>
+    </SfAppBar>
+</div>
+@code {
+    private static string AddBook = "/addbook";
+    private static string Refresh = "/";
+
+    private void Navigate(string link)
+    {
+        NavigationManager.NavigateTo(link, true);
+    }
+}

@@ -1,0 +1,127 @@
+﻿@page "/"
+@inject IHttpClientFactory httpFactory
+@inject NavigationManager NavigationManager
+@inject StateContainer stateContainer
+@inject IJSRuntime jsRuntime
+@inject IBookService bookService
+
+@if (DatabaseBookList.Count > 0)
+{
+    <SfGrid DataSource="@DatabaseBookList" AllowFiltering="true" AllowGrouping="true" AllowPaging="true" AllowReordering="true" AllowSorting="true" @ref="BookDataGrid">
+        <GridColumns>
+            <GridColumn HeaderText="Book Image" TextAlign="TextAlign.Center" Width="120" AllowFiltering="false" AllowSorting="false" AllowSearching="false">
+                <Template>
+                    @{
+                        var book = (context as Book);
+                        <div class="image">
+                            <img src="@book!.Image" alt="@book.Id" width="50" height="100" style="border-radius:revert-layer;" />
+                        </div>
+                    }
+                </Template>
+            </GridColumn>
+            <GridColumn Field=@nameof(Book.Id) HeaderText="Book ID" TextAlign="TextAlign.Center" Width="120"></GridColumn>
+            <GridColumn Field=@nameof(Book.Title) HeaderText="Book Name" Width="150" TextAlign="TextAlign.Center"></GridColumn>
+            <GridColumn Field=@nameof(Book.Description) HeaderText=" Book Description" Type="ColumnType.String" TextAlign="TextAlign.Center" Width="200"></GridColumn>
+            <GridColumn HeaderText="Actions" TextAlign="TextAlign.Center" Width="120" AllowFiltering="false" AllowSorting="false" AllowSearching="false">
+                <Template>
+                    @{
+                        var bookContext = (context as Book);
+                        <div class="image">
+                            <button class="border-0" style="background-color:transparent;"><span class="e-icons e-edit text-info" @onclick="(async ()=> await EditBookData(bookContext!))"></span></button>
+                            <button class="border-0" style="background-color:transparent"><span class="e-icons e-trash text-danger" @onclick="(async ()=> await DeleteBookData(bookContext!))"></span></button>
+
+                        </div>
+                    }
+                </Template>
+            </GridColumn>
+        </GridColumns>
+    </SfGrid>
+
+    <MakeToast ToastContent="@ToastContent" Title="@Title" Display="@Display"></MakeToast>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-6 offset-3 mt-3">
+            <div style="margin-top:350px;">
+
+                <SfSpinner @bind-Visible="@VisibleProperty">
+                </SfSpinner>
+            </div>
+        </div>
+    </div>
+}
+
+@code
+{
+    private bool VisibleProperty { get; set; } = true;
+    SfGrid<Book> BookDataGrid = new();
+    private static string BaseUrl = "https://localhost:7298/";
+    private string ToastContent = string.Empty;
+    private string Title = string.Empty;
+    private bool Display;
+
+    public List<Book> DatabaseBookList { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDate();
+    }
+
+    private async Task LoadDate()
+    {
+        var client = httpFactory.CreateClient("LocalApi");
+        var result = await client.GetAsync($"{BaseUrl}api/book");
+        var bookdata = await result.Content.ReadFromJsonAsync<List<Book>>();
+
+        if (bookdata!.Count > 0)
+            DatabaseBookList = bookdata!;
+        else
+            DatabaseBookList.Clear();
+    }
+
+
+    public async Task EditBookData(Book book)
+    {
+        if (book is null) return;
+
+        NavigateToDetails(book);
+        await LoadDate();
+        await BookDataGrid.Refresh();
+    }
+
+    public async Task DeleteBookData(Book book)
+    {
+        if (book is null) return;
+        bool confirm = await jsRuntime.InvokeAsync<bool>("confirm", "Are you sure you wanna do this?");
+        if (!confirm) return;
+
+        var result = await bookService.DeleteBookAsync(book.Id);
+        Display = true;
+        CreateToast(result.Success, result.Message);
+        await LoadDate();
+        BookDataGrid.Refresh();
+
+    }
+
+    private void NavigateToDetails(Book bookObject)
+    {
+        stateContainer.ObjectTunnel.Add(bookObject.GetHashCode(), bookObject);
+        NavigationManager.NavigateTo($"addbook/{bookObject.GetHashCode()}");
+    }
+
+    private void CreateToast(bool status, string message)
+    {
+        if (status)
+        {
+            ToastContent = message;
+            Title = "Success";
+        }
+        else
+        {
+            ToastContent = message;
+            Title = "Alert";
+        }
+    }
+}
+

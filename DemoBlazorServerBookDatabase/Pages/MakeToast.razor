@@ -1,0 +1,31 @@
+﻿<SfToast ID="toast_default" @ref="ToastObj" Title="@Title" Content="@ToastContent" Timeout="5000" Icon="e-meeting">
+    <ToastPosition X="Right"></ToastPosition>
+</SfToast>
+<style>
+    #toast_default .e-meeting::before {
+        content: "\e705";
+        font-size: 17px;
+    }
+
+    .bootstrap4 #toast_default .e-meeting::before {
+        content: "\e763";
+        font-size: 20px;
+    }
+</style>
+@code {
+    SfToast ToastObj = new();
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? ToastContent { get; set; }
+    [Parameter] public bool Display { get; set; } = false;
+
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Display is true)
+        {
+            this.StateHasChanged();
+            await Task.Delay(500);
+            await this.ToastObj.ShowAsync();
+        }
+    }
+}

@@ -1,0 +1,179 @@
+﻿@page "/addbook"
+@page "/addbook/{SetHashCode:int}"
+@inject NavigationManager NavigationManager
+@inject IBookService bookService
+@inject StateContainer stateContainer
+<div id="target">
+
+    <SfDialog Target="#target" Width="500px" @bind-Visible="Visibility" AllowPrerender="true" IsModal="true">
+        <DialogTemplates>
+            <Header> @PageTitle</Header>
+            <Content>
+                <div class="col-md-12 mt-0 mb-1 alert alert-danger" style="visibility:@DisplayErrors">
+                    <ul class="list-group">
+                        @foreach (Error er in Errors)
+                        {
+                            <li><b>@er.Property</b>: @er.Message</li>
+                        }
+                    </ul>
+                </div>
+                <div class="card mt-0">
+                    <div class="card-header">
+                        <button class="float-end bg-light border-0" @onclick="CloseDialog"><SfIcon IconCss="e-icons e-close" @onclick="CloseDialog"></SfIcon></button>
+                    </div>
+
+                    <EditForm Model="book" OnValidSubmit="HandleSave">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="title" class="form-label">Title</label>
+                                <InputText @bind-Value="book.Title" class="form-control"></InputText>
+                                <ValidationMessage For="(()=> book.Title)" />
+                            </div>
+                            <div class="form-group mt-2">
+                                <label for="title" class="form-label">Description</label>
+                                <InputTextArea @bind-Value="book.Description" class="form-control"></InputTextArea>
+                                <ValidationMessage For="(()=> book.Description)" />
+                            </div>
+                            <hr />
+                            <div class="form-group mt-2">
+                                <div class="row">
+                                    <div class="col-md -7">
+                                        <label for="file" class="form-label">Image</label> <br />
+                                        <InputFile id="file" OnChange="@OnFileChange"></InputFile>
+                                        <ValidationMessage For="(()=> book.Image)" />
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label for="file" class="form-label">Image</label> <br />
+                                        <img src="@book.Image" width="80" height="50" />
+                                    </div>
+                                </div>
+
+                            </div>
+                            <hr />
+                        </div>
+                    </EditForm>
+                </div>
+            </Content>
+        </DialogTemplates>
+        <DialogButtons>
+            <DialogButton Content="Save" OnClick="HandleSave" CssClass="e-primary"></DialogButton>
+        </DialogButtons>
+    </SfDialog>
+</div>
+<MakeToast ToastContent="@ToastContent" Title="@Title" Display="@Display"></MakeToast>
+<style>
+    #target {
+        height: 590px;
+    }
+</style>
+
+@code {
+    [Parameter] public int SetHashCode { get; set; }
+    private string PageTitle = string.Empty;
+
+    private string ToastContent = string.Empty;
+    private string Title = string.Empty;
+    private bool Display;
+
+    private string DisplayErrors = "hidden";
+    public List<Error> Errors { get; set; } = new();
+
+    public Book book { get; set; } = new();
+    private bool Visibility { get; set; } = true;
+
+    private void CloseDialog()
+    {
+        this.Visibility = false;
+        NavigationManager.NavigateTo("/");
+    }
+
+    private async Task HandleSave()
+    {
+        if (ValidateModel(book))
+        {
+            if (Errors.Count > 0)
+            {
+                DisplayErrors = "visible";
+                return;
+            }
+            var result = await bookService.ManageBookAsync(book);
+            CreateToast(result.Success, result.Message);
+            Display = true;
+            book = new Book();
+        }
+    }
+
+    private bool ValidateModel(Book bookError)
+    {
+        Errors.Clear();
+        if (string.IsNullOrEmpty(bookError.Image))
+            Errors.Add(new Error() { Property = "Image", Message = "Image cannot be null" });
+
+        if (string.IsNullOrEmpty(bookError.Description))
+            Errors.Add(new Error() { Property = "Description", Message = "Description cannot be null" });
+
+        if (string.IsNullOrEmpty(bookError.Title))
+            Errors.Add(new Error() { Property = "Title", Message = "Title cannot be null" });
+
+        return true;
+    }
+
+
+    public class Error
+    {
+        public string Property { get; set; }
+        public string Message { get; set; }
+    }
+
+    private void CreateToast(bool status, string message)
+    {
+        if (status)
+        {
+            ToastContent = message;
+            Title = "Success";
+        }
+        else
+        {
+            ToastContent = message;
+            Title = "Alert";
+        }
+    }
+
+    async Task OnFileChange(InputFileChangeEventArgs e)
+    {
+        string format = string.Empty;
+        if (e.File.Name.ToLower().Contains("png"))
+            format = "image/png";
+
+        if (e.File.Name.ToLower().Contains("jpg"))
+            format = "image/jpg";
+
+        if (e.File.Name.ToLower().Contains("jpeg"))
+            format = "image/jpeg";
+
+        var resizeImage = await e.File.RequestImageFileAsync(format, 300, 300);
+        var buffer = new byte[resizeImage.Size];
+        await resizeImage.OpenReadStream().ReadAsync(buffer);
+        var imageData = $"data:{format};base64,{Convert.ToBase64String(buffer)}";
+        book.Image = imageData;
+    }
+
+    protected override Task OnParametersSetAsync()
+    {
+        if(SetHashCode != 0)
+        {
+            PageTitle = "Update Book Data in Database";
+            book = (Book)stateContainer.ObjectTunnel[SetHashCode];
+        }
+        
+        return base.OnParametersSetAsync();
+    }
+
+    protected override void OnInitialized()
+    {
+        PageTitle = "Add Book Data to Database";
+    }
+}
+
